@@ -14,10 +14,10 @@ class Load_DB:
         self.counter = 0
 
     def load_tweets(self):
-        '''insert the data into the mongoDB into a collection called test_collection.
-        if test_collection doesn't exist, it will be created.'''
+        '''insert the data into the mongoDB into a collection called tweet_dicts.
+        if the collection doesn't exist, it will automatically be created.'''
 
-        config.client.tweets.test_collection.insert(self.buffer)
+        config.client.tweets.tweet_dicts.insert(self.buffer)
 
     def collect_tweets(self, tweet):
         self.buffer.append(tweet)
@@ -28,7 +28,7 @@ class Load_DB:
 
         if len(self.buffer) >= self.batch_size:
             self.load_tweets()
-            print(f"loaded tweet {int(self.counter + self.batch_size)} of {int(self.limit)}")
+            print(f"loaded {int(self.counter + self.batch_size)} tweets of {int(self.limit)}")
             self.buffer = []
             self.counter += self.batch_size
 
