@@ -45,8 +45,8 @@ if __name__ == '__main__':
     """
 
     parser=argparse.ArgumentParser(description='Collect tweets and put them into a database')
-    parser.add_argument('-b', '--batch_size', type=int, default=2, help='How many tweets do you want to grab at a time?')
-    parser.add_argument('-n', '--total_number', type=int, default=10, help='How many total tweets do you want to get?')
+    parser.add_argument('-b', '--batch_size', type=int, default=10, help='How many tweets do you want to grab at a time?')
+    parser.add_argument('-n', '--total_number', type=int, default=300, help='How many total tweets do you want to get?')
 
     args = parser.parse_args()
 
