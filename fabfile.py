@@ -2,7 +2,7 @@ from fabric import task
 from fabric import Connection
 from subprocess import call
 
-CMD = 'python3 twitter_stream_analysis/twitter_stream_analysis/twitter_push.py'
+CMD = 'python3 twitter_stream_analysis/twitter_stream_analysis/load_database.py'
 USER = 'ec2-user'
 HOST = 'ec2-35-157-179-142.eu-central-1.compute.amazonaws.com'
 c = Connection(
