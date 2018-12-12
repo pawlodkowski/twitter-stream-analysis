@@ -17,7 +17,7 @@ class Load_DB:
         '''insert the data into the mongoDB into a collection called tweet_dicts.
         if the collection doesn't exist, it will automatically be created.'''
 
-        config.client.tweets.tweet_dicts.insert(self.buffer)
+        config.client.tweets.tweet_dicts.insert_many(self.buffer)
 
     def collect_tweets(self, tweet):
         self.buffer.append(tweet)
