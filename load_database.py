@@ -6,8 +6,8 @@ import config
 
 class Load_DB:
 
-    def __init__(self, chunk_size, limit):
-        self.chunk_size = chunk_size
+    def __init__(self, batch_size, limit):
+        self.batch_size = batch_size
         #self.db = client
         self.buffer = []
         self.limit = limit
@@ -27,25 +27,30 @@ class Load_DB:
     def collect_tweets(self, tweet):
         self.buffer.append(tweet)
 
-        #logic for handling if chunk size > limit for whatever reason
-        if self.limit - self.counter < self.chunk_size:
-            self.chunk_size = self.limit - self.counter
+        #logic for handling if batch size > limit and if limit % batch_size != 0
+        if self.limit - self.counter < self.batch_size:
+            self.batch_size = self.limit - self.counter
 
-        if len(self.buffer) >= self.chunk_size:
+        if len(self.buffer) >= self.batch_size:
             self.load_tweets()
+            print(f"loaded {int(self.counter + self.batch_size)} tweets of {int(self.limit)}")
             self.buffer = []
-            self.counter += self.chunk_size
+            self.counter += self.batch_size
 
-def populate_database(chunk_size, limit):
+def populate_database(batch_size, limit):
     twitter_streamer = TwitterStreamer()
-    twitter_streamer.stream_tweets(limit, Load_DB(chunk_size, limit).collect_tweets)
-    #get_tweets(limit, callback = read_into_Mongo.new_tweet)
+    twitter_streamer.stream_tweets(limit, Load_DB(batch_size, limit).collect_tweets)
+    #Load_DB.collect_tweets is the callback.
 
 if __name__ == '__main__':
 
-    # python db_interface.py -h
+    """
+    To view argument parser help in the command line:
+    'python load_database.py -h'
+    """
+
     parser=argparse.ArgumentParser(description='Collect tweets and put them into a database')
-    parser.add_argument('-c', '--chunk_size', type=int, default=2, help='How many tweets do you want to grab at a time?')
+    parser.add_argument('-b', '--batch_size', type=int, default=2, help='How many tweets do you want to grab at a time?')
     # parser.add_argument('--client', type=str, default="", help='Enter the string that points to the relevant database')
     parser.add_argument('-n', '--total_number', type=int, default=10, help='How many total tweets do you want to get?')
 
@@ -55,4 +60,5 @@ if __name__ == '__main__':
     # else:
     #     client = pymongo.MongoClient(args.client)
 
-    populate_database(args.chunk_size, args.total_number)
+    print("loading data to database...\n")
+    populate_database(args.batch_size, args.total_number)

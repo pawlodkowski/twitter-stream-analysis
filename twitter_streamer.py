@@ -51,8 +51,8 @@ class TwitterListener(StreamListener):
                 geo_data.append(t['place']['bounding_box']['coordinates'])
             except KeyError:
                 geo_data.append(['KeyError'])
-        else:
-            geo_data.append([])
+        # else:
+        #     geo_data.append([])
 
         return geo_data
 
@@ -64,8 +64,8 @@ class TwitterListener(StreamListener):
                 user_location.append(t['user']['location'])
             except KeyError:
                 user_location.append(['KeyError'])
-        else:
-            user_location.append([])
+        # else:
+        #     user_location.append([])
 
         return user_location
 
@@ -76,8 +76,8 @@ class TwitterListener(StreamListener):
                 hashtags.append(hashtag['text'])
         elif 'hashtags' in t['entities'] and len(t['entities']['hashtags']) > 0:
             hashtags = [item['text'] for item in t['entities']['hashtags']]
-        else:
-            hashtags = []
+        # else:
+        #     hashtags = []
         return hashtags
 
     def get_tweet_dict(self, t):
