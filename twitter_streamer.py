@@ -1,17 +1,14 @@
-from tweepy.streaming import StreamListener
-from tweepy import OAuthHandler
-from tweepy import Stream
 import json
+
+import numpy as np
+import pandas as pd
+from tweepy import API, OAuthHandler, Stream
+from tweepy.streaming import StreamListener
 
 import config
 from search_terms import KEYWORDS_LIST
 
-from tweepy import API
-
-import numpy as np
-import pandas as pd
-
-OUTPUT_FILENAME = 'sandbox/sample_dict_output.json'
+OUTPUT_FILENAME = 'sandbox/sample_dict_output.json' #used for testing
 LANGUAGES = ['en']
 
 class TwitterAuthenticator():
@@ -26,12 +23,12 @@ class TwitterListener(StreamListener):
        on_data() method dictates what should be done with tweets
        as soon as they come in contact with the Listener / program."""
 
-    def __init__(self, limit, callback, output_filename):
+    def __init__(self, limit, callback):
         super().__init__()
         self.limit = limit
         self.counter = 0
         self.callback = callback
-        self.output_filename = output_filename
+        # self.output_filename = output_filename
 
     def on_error(self, status):
 
@@ -51,8 +48,6 @@ class TwitterListener(StreamListener):
                 geo_data.append(t['place']['bounding_box']['coordinates'])
             except KeyError:
                 geo_data.append(['KeyError'])
-        # else:
-        #     geo_data.append([])
 
         return geo_data
 
@@ -64,8 +59,6 @@ class TwitterListener(StreamListener):
                 user_location.append(t['user']['location'])
             except KeyError:
                 user_location.append(['KeyError'])
-        # else:
-        #     user_location.append([])
 
         return user_location
 
@@ -76,8 +69,7 @@ class TwitterListener(StreamListener):
                 hashtags.append(hashtag['text'])
         elif 'hashtags' in t['entities'] and len(t['entities']['hashtags']) > 0:
             hashtags = [item['text'] for item in t['entities']['hashtags']]
-        # else:
-        #     hashtags = []
+
         return hashtags
 
     def get_tweet_dict(self, t):
@@ -111,37 +103,42 @@ class TwitterListener(StreamListener):
 
     def on_data(self, data):
 
-        '''collect, filter and parse the tweets from twitter API'''
+        '''
+           Define what should be done with each incoming streamed tweet as it
+           is intercepted by the StreamListener:
+           - convert each json-like string from twitter into a workable JSON object;
+           - ignore retweets, replies, and quoted tweets;
+           - apply the get_tweet_dict function to each object;
+           - apply a callback function to the resulting dictionary;
+           - shut off StreamListener as soon as it reaches a pre-defined limit.
+        '''
 
         t = json.loads(data)
 
-        #only consider tweets that are non-retweets, non-replies, and non-quotes.
         if 'RT' not in t['text'] and t['in_reply_to_status_id'] == None and t['is_quote_status'] == False:
 
             tweet = self.get_tweet_dict(t)
             self.callback(tweet)
-            #apply the callback to every single tweet data structure (i.e. the dictionary)
-            #in this script, the callback is print(),
-            #but in the greater program, the callback is db_interface.Load_DB.new_tweet()
 
+            #commented out, since output_filename was just used for testing.
+            # with open(self.output_filename, 'a') as file:
+            #     file.write(str(tweet))
 
-            #can comment this out later. output_filename is mostly just for testing.
-            with open(self.output_filename, 'a') as file:
-                file.write(str(tweet))
             self.counter += 1
 
-            #end stream once it hits a pre-defined limit.
             if self.counter == self.limit:
                 return False
 
 class TwitterStreamer():
-    """Class containing the primary method / functionality of the script"""
+    '''
+       Class containing the primary method / functionality of the script.
+    '''
 
     def __init__(self):
         self.twitter_authenticator = TwitterAuthenticator()
 
     def stream_tweets(self, limit, callback):
-        listener = TwitterListener(limit, callback, OUTPUT_FILENAME)
+        listener = TwitterListener(limit, callback)
         auth = self.twitter_authenticator.authenticate()
         stream = Stream(auth, listener)
         stream.filter(track=KEYWORDS_LIST, languages=LANGUAGES)
