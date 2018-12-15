@@ -16,10 +16,14 @@ GEOCODER = RateLimiter(GEOSERVICE.geocode, min_delay_seconds=2, max_retries=3)
 
 def get_df():
 
+    """Still a work in progress: toggle the different queries to test different
+       types of queries. Ultimately, I will need to run .find({"id":{"$exists":True}})
+       in order to get geocoded data for ALL tweets in the database."""
+
     # cursor = ATLAS_DB.tweet_dicts.find({"id":{"$exists":True}})
     # cursor = ATLAS_DB.tweet_dicts.find_one()
     # cursor = ATLAS_DB.tweet_dicts.find({"num_followers":{"$gt":25000000}})
-    cursor = ATLAS_DB.tweet_dicts.aggregate([{ "$sample": {"size": 20}}])
+    cursor = ATLAS_DB.tweet_dicts.aggregate([{ "$sample": {"size": 50}}]) #random sample of 20 tweets
     # cursor = ATLAS_DB.tweet_dicts.find({"num_followers": {"$elemMatch": {"$gte": 400, "$lt": 600}}})
 
     df = pd.DataFrame(list(cursor))
@@ -83,7 +87,7 @@ def clean_data():
     return df
 
 def geocode_fetcher(loc, counter=3):
-    # while counter > 0:
+
     try:
         return GEOSERVICE.geocode(loc,
                                 exactly_one=True,
@@ -92,12 +96,12 @@ def geocode_fetcher(loc, counter=3):
                                 addressdetails=False)
 
     except GeocoderTimedOut:
-        # time.sleep(2)
-        # return geocode_fetcher(loc, counter-1)
+
         print(f"GEOCODER TIMED OUT FOR: {loc}")
         return None
 
     except (AttributeError, KeyError, TypeError) as e:
+
         print(f"ATTRIBUTE / KEY / TYPE ERROR FOR: {loc}")
         return None
 
@@ -129,40 +133,69 @@ def get_geocoded_name(loc_obj):
     except (AttributeError, KeyError) as e:
         return None
 
+"""custom encoder (commented out below) was an attempt to "mask" a geopy.location.Location data type
+   into a  another data structure, so it could be inserted into MongoDB -- but this still did not work.
+   MongoDB's BSON decoder absolutely refuses to accept that data type."""
 
-class CustomEncoder():
-    def __init__(self, x):
-        self.__x = x
-
-    def x(self):
-        return self.__x
-
-def encode_custom(custom):
-    return {"_type": "custom", "x": custom.x()}
+# class CustomEncoder():
+#     def __init__(self, x):
+#         self.__x = x
+#
+#     def x(self):
+#         return self.__x
+#
+# def encode_custom(custom):
+#     return {"_type": "custom", "x": custom.x()}
 
 def get_geocoded_object(clean_location):
 
-    if LOCAL_DB.geocodes.count_documents({"clean_location": clean_location}) >=1:
-        geocoded_object = LOCAL_DB.geocodes.find_one({"clean_location": clean_location})["geocoded_object"]
-        # return geocoded_object['loc_obj']
+    """
+        If the entry already exists in the local database, then
+        simply return the geo object from the local "cache."
+        Otherwise, fetch the data from the Nominatim API, and store it
+        in the local cache afterwards.
+    """
+
+    if LOCAL_DB.geocodes.count_documents({"geocoded_object.clean_location": clean_location}) >=1:
+
+        geocoded_object = LOCAL_DB.geocodes.find_one({'geocoded_object.clean_location': clean_location})
+        geocoded_object = geocoded_object['geocoded_object'] #strip off the ObjectId field from MongoDB
+
         return geocoded_object
 
     else:
-        # geocoded_object = {'loc_obj': geocode_fetcher(clean_location)}
-        geocoded_object = geocode_fetcher(clean_location)
 
-        print(f"\n\nDATATYPE: {type(geocoded_object)}\n\n")
+        geopyLocation = geocode_fetcher(clean_location)
 
-        LOCAL_DB.geocodes.insert_one({
-                                      "clean_location" : clean_location,
-                                      "geocoded_object" : encode_custom(CustomEncoder(geocoded_object)),
-                                      # "geocoded_name" : get_geocoded_name(geocoded_object['loc_obj']),
-                                      # "coordinates" : get_coords(geocoded_object['loc_obj']),
-                                      # "bounding_box" : get_bounding_box(geocoded_object['loc_obj']),
-                                      # "importance" : get_importance_score(geocoded_object['loc_obj'])
-                                      })
+        # if geopyLocation: #if geocode_fetcher did not return a None type or an empty object.
 
-        # return geocoded_object['loc_obj']
+        geocoded_object = {
+                          "clean_location" : clean_location,
+                          "geocoded_name" : get_geocoded_name(geopyLocation),
+                          "coordinates" : get_coords(geopyLocation),
+                          "bounding_box" : get_bounding_box(geopyLocation),
+                          "importance" : get_importance_score(geopyLocation)
+                          }
+        # else:
+        #     geocoded_object = {
+        #                       "clean_location" : clean_location,
+        #                       "geocoded_name" : None,
+        #                       "coordinates" : None,
+        #                       "bounding_box" : None,
+        #                       "importance" : None
+        #                       }
+
+        # geocoded_object_encoded = {'loc_obj': geocode_fetcher(clean_location)}
+        # geocoded_object_encoded = encode_custom(CustomEncoder(geocoded_object))
+
+        LOCAL_DB.geocodes.insert_one({"geocoded_object" : geocoded_object})
+
+        """ERROR -- Pymongo / BSON refuses to accept the geocoded object in its entirety,
+        (data type: geopy.location.Location), no matter how much I try to "encode" it into other data structures, such as within a dictionary or embedded within a class Method.
+
+        That is why I am extracting everything I need from the geopy object first,
+        and storing its elements into a Python dictionary, which the DB accepts as a valid structure."""
+
         return geocoded_object
 
 
@@ -171,22 +204,25 @@ def add_loc_data():
     print("building dataframe and cleaning data...\n\n")
     df = clean_data()
 
-    print("getting geocodes from Nominatum / local database...\n\n")
+    print("getting geocoded objects from Nominatim / local database...\n\n")
     df['geocoded_object'] = df['clean_location'].apply(get_geocoded_object)
-    df['geocoded_name'] = df['geocoded_object'].apply(lambda g: g[0] if g else None)
+
+    print("getting geocoded names...\n\n")
+    df['geocoded_name'] = df['geocoded_object'].map(lambda x: x.get('geocoded_name') if x else None)
 
     print("getting coordinates...\n\n")
-    df['coordinates'] = df['geocoded_object'].apply(get_coords)
+    df['coordinates'] = df['geocoded_object'].map(lambda x: x.get('coordinates') if x else None)
 
     print("getting bounding box...\n\n")
-    df['bounding_box'] = df['geocoded_object'].apply(get_bounding_box)
+    df['bounding_box'] = df['geocoded_object'].map(lambda x: x.get('bounding_box') if x else None)
 
     print("getting importance score...\n\n")
-    df['importance_score'] = df['geocoded_object'].apply(get_location_importance)
+    df['importance_score'] = df['geocoded_object'].map(lambda x: x.get('importance') if x else None)
 
-    # return df
+    # # return df
+
     with open('sandbox/test_output.csv', 'a') as f:
-        df.to_csv(f, header=False)
+        df.to_csv(f, header=True)
     print("Successfully printed to csv!\n\n")
 
 def test_geo_cleaning():
@@ -201,22 +237,3 @@ def test_geo_cleaning():
 print(f"doc counts: {NUM_DOCS}\n")
 # test_geo_cleaning()
 add_loc_data()
-
-# def get_geocode(address):
-#        address = address.lower() #+ furter preprocessing?!
-#        if db.geocodes.count_documents({"raw": address}) >= 1:
-#            geocode = db.geocodes.find_one({"raw": address})["geocode"]
-#            return geocode
-#        else:
-#            try:
-#                geocode = list(Nominatim(user_agent = "categorizer").geocode(address))
-#            except GeocoderTimedOut:
-#                time.sleep(5)
-#                geocode = list(Nominatim(user_agent = "categorizer").geocode(address))
-#            except TypeError:
-#                return f"{address} - NO GEOCODE OBTAINED"
-#            db.geocodes.insert_one({"raw" : address,
-#                                    "geocode" : geocode[0],
-#                                    "interpretation" : geocode[0].split(",")[0],
-#                                    "coordinates" :geocode[1]})
-#            return geocode[0] #--> 0 being the actual geocode, whereas 1 are coordinates.
