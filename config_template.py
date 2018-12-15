@@ -13,9 +13,17 @@ import pymongo
      of the 'Short SRV connection string' after the '@' symbol.
      (e.g. 'myproject-rakqi.mongodb.net/test?retryWrites=true')
 
-    - the ATLAS_CLIENT is used for storing twitter data in the remote database, and the LOCAL_CLIENT is used for storing a local version of a "lookup" table of location names that are queried and geo-coded from the Nominatum API tool (https://wiki.openstreetmap.org/wiki/Nominatim). This variable is used in the geocoder.py file.
+    - the ATLAS_CLIENT is used for storing twitter data in the remote database,
+    and the LOCAL_CLIENT is used for storing a local version of a "lookup" table
+    of location names that are queried and geo-coded from the Nominatum API tool
+    (https://wiki.openstreetmap.org/wiki/Nominatim). This variable is used in the geocoder.py file.
 
-        - The purpose of this strategy is to keep a local "cache" of geo-coded locations so that this program limits the amount of times it needs to ping the Nominatim API through the geopy library (i.e. whenever the program is in the process of geo-coding the user location field of each collected tweet, it will first check if the user location is in the local database; if it's not, only then will it send a request to the API.)
+        - The purpose of this strategy is to keep a local "cache" of geo-coded
+        locations so that this program limits the amount of times it needs to
+        ping the Nominatim API through the geopy library (i.e. whenever the program
+        is in the process of geo-coding the user location field of each collected tweet,
+        it will first check if the user location is in the local database;
+        if it's not, only then will it send a request to the API.)
 """
 
 
