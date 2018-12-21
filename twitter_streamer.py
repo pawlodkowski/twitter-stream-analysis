@@ -4,10 +4,14 @@ import numpy as np
 import pandas as pd
 from tweepy import API, OAuthHandler, Stream
 from tweepy.streaming import StreamListener
+from datetime import datetime #for testing time of script execution
 
 import config
-from search_terms import KEYWORDS_LIST
+# from search_terms import KEYWORDS_LIST
+### ^ No longer importing this from separate file,
+#but rather as a direct parameter in TwitterStreamer
 
+STARTTIME = datetime.now()
 OUTPUT_FILENAME = 'sandbox/sample_dict_output.json' #used for testing
 LANGUAGES = ['en']
 
@@ -134,17 +138,18 @@ class TwitterStreamer():
        Class containing the primary method / functionality of the script.
     '''
 
-    def __init__(self):
+    def __init__(self, keywords):
         self.twitter_authenticator = TwitterAuthenticator()
+        self.keywords = keywords
 
     def stream_tweets(self, limit, callback):
         listener = TwitterListener(limit, callback)
         auth = self.twitter_authenticator.authenticate()
         stream = Stream(auth, listener)
-        stream.filter(track=KEYWORDS_LIST, languages=LANGUAGES)
+        stream.filter(track=self.keywords, languages=LANGUAGES)
 
 
 if __name__ == "__main__":
 
-    twitter_streamer = TwitterStreamer()
-    twitter_streamer.stream_tweets(5, print)
+    twitter_streamer = TwitterStreamer(['kanyewest'])
+    twitter_streamer.stream_tweets(10, print)
