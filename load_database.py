@@ -5,6 +5,9 @@ import pymongo
 import config
 from twitter_streamer import TwitterStreamer
 
+LOCAL_DB = config.LOCAL_CLIENT.tweets
+ATLAS_DB = config.ATLAS_CLIENT.tweets
+
 class Load_DB:
 
     def __init__(self, batch_size, limit):
@@ -17,7 +20,8 @@ class Load_DB:
         '''insert the data into the mongoDB into a collection called tweet_dicts.
         if the collection doesn't exist, it will automatically be created.'''
 
-        config.ATLAS_CLIENT.tweets.tweet_dicts.insert_many(self.buffer)
+        # config.ATLAS_CLIENT.tweets.tweet_dicts.insert_many(self.buffer) #OLD SETUP FOR AWS SERVER
+        LOCAL_DB.tweet_dicts.insert_many(self.buffer)
 
     def collect_tweets(self, tweet):
         self.buffer.append(tweet)
@@ -32,8 +36,8 @@ class Load_DB:
             self.buffer = []
             self.counter += self.batch_size
 
-def populate_database(batch_size, limit):
-    twitter_streamer = TwitterStreamer()
+def populate_database(batch_size, limit, keywords):
+    twitter_streamer = TwitterStreamer(keywords)
     twitter_streamer.stream_tweets(limit, Load_DB(batch_size, limit).collect_tweets)
     #Load_DB.collect_tweets() is the callback in the TwitterStreamer.
 
@@ -45,10 +49,13 @@ if __name__ == '__main__':
     """
 
     parser=argparse.ArgumentParser(description='Collect tweets and put them into a database')
+
+    parser.add_argument('-k','--keyword_list', nargs='+', help='<Required> Enter any keywords (separated by spaces; no punctuation) that should be included in streamed tweets.', required=True)
     parser.add_argument('-b', '--batch_size', type=int, default=10, help='How many tweets do you want to grab at a time?')
     parser.add_argument('-n', '--total_number', type=int, default=300, help='How many total tweets do you want to get?')
+
 
     args = parser.parse_args()
 
     print("loading data to database...\n")
-    populate_database(args.batch_size, args.total_number)
+    populate_database(args.batch_size, args.total_number, args.keyword_list)
