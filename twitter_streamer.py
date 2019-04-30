@@ -151,5 +151,5 @@ class TwitterStreamer():
 
 if __name__ == "__main__":
 
-    twitter_streamer = TwitterStreamer(['kanyewest'])
+    twitter_streamer = TwitterStreamer(['berlin', 'germany'])
     twitter_streamer.stream_tweets(10, print)

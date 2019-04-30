@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-k','--keyword_list', nargs='+', help='<Required> Enter any keywords (separated by spaces; no punctuation) that should be included in streamed tweets.', required=True)
     parser.add_argument('-b', '--batch_size', type=int, default=10, help='How many tweets do you want to grab at a time?')
-    parser.add_argument('-n', '--total_number', type=int, default=300, help='How many total tweets do you want to get?')
+    parser.add_argument('-n', '--total_number', type=int, default=100, help='How many total tweets do you want to get?')
 
 
     args = parser.parse_args()
@@ -193,6 +193,7 @@ if __name__ == '__main__':
     tweetmap.save(HTML_PATH)
     print("\n\n\n\n\n-----SUCCESSFULLY PRODUCED MAP!-----\n\n\n\n\n")
     webbrowser.get(CHROME_PATH).open(HTML_PATH)
+    webbrowser.get(CHROME_PATH).open(DEMO_FILE)
 
 
 

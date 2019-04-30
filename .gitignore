@@ -108,3 +108,6 @@ config.py
 
 # credentials for AWS server
 *.pem
+
+# DS_Store for mac
+.DS_Store
